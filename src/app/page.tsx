@@ -36,6 +36,7 @@ export default function Home() {
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [outputText, setOutputText] = useState('');
+  const [copied, setCopied] = useState(false);
 
   const addToast = useCallback((type: ToastMessage['type'], message: string) => {
     const id = crypto.randomUUID();
@@ -211,6 +212,8 @@ export default function Home() {
   const handleCopyAll = () => {
     navigator.clipboard.writeText(outputText);
     addToast('success', `Copied ${activeSelectedNodes.length} nodes to clipboard`);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
   };
 
   const handleSelectAll = (tabId: string) => {
@@ -334,10 +337,13 @@ export default function Home() {
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="font-semibold">Output ({activeSelectedNodes.length} selected)</h3>
                       <button
-                        className="btn btn-primary btn-xs"
+                        className="btn btn-primary btn-xs gap-1"
                         onClick={handleCopyAll}
                         disabled={activeSelectedNodes.length === 0}
                       >
+                        {copied && (
+                          <span className="w-2 h-2 bg-white rounded-full animate-ping" />
+                        )}
                         Copy All
                       </button>
                     </div>
@@ -346,6 +352,9 @@ export default function Home() {
                       value={outputText}
                       onChange={(e) => setOutputText(e.target.value)}
                     />
+                    <p className="text-xs text-base-content/50 mt-2">
+                      Copy and paste to n8n workflow page
+                    </p>
                   </div>
                 </div>
               </div>
