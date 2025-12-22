@@ -1,0 +1,27 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "url": "https://www.google.com/",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [96, 0],
+      "id": "ee8f0a72-5e02-4184-b7fe-19b264a3ee95",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "url": "https://www.google.com/",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [96, 224],
+      "id": "8e8b51e7-0dda-4c4c-a915-0b6606df0de9",
+      "name": "HTTP Request1"
+    }
+  ],
+  "connections": {}
+}
