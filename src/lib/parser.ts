@@ -29,9 +29,18 @@ export function parseOpenAPI(input: string): OpenAPISpec {
 }
 
 export function getBaseUrl(spec: OpenAPISpec): string {
+  // OpenAPI 3.x format
   if (spec.servers && spec.servers.length > 0) {
     return spec.servers[0].url;
   }
+
+  // Swagger 2.0 format
+  if (spec.host) {
+    const scheme = spec.schemes?.[0] || 'https';
+    const basePath = spec.basePath || '';
+    return `${scheme}://${spec.host}${basePath}`;
+  }
+
   return '';
 }
 

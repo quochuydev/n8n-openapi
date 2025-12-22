@@ -6,11 +6,18 @@ export interface OpenAPISpec {
     version: string;
     description?: string;
   };
+  // OpenAPI 3.x
   servers?: Array<{ url: string; description?: string }>;
-  paths: Record<string, PathItem>;
   components?: {
     securitySchemes?: Record<string, SecurityScheme>;
   };
+  // Swagger 2.0
+  host?: string;
+  basePath?: string;
+  schemes?: string[];
+  securityDefinitions?: Record<string, SecurityScheme>;
+  // Common
+  paths: Record<string, PathItem>;
   security?: Array<Record<string, string[]>>;
 }
 
@@ -48,7 +55,9 @@ export interface RequestBody {
 }
 
 export interface SecurityScheme {
-  type: 'apiKey' | 'http' | 'oauth2' | 'openIdConnect';
+  // OpenAPI 3.x types: apiKey, http, oauth2, openIdConnect
+  // Swagger 2.0 types: apiKey, basic, oauth2
+  type: 'apiKey' | 'http' | 'oauth2' | 'openIdConnect' | 'basic';
   scheme?: string;
   bearerFormat?: string;
   name?: string;

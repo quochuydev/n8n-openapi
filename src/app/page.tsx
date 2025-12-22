@@ -5,7 +5,7 @@ import { InputPanel } from "@/components/InputPanel";
 import { NodeList } from "@/components/NodeList";
 import { Toast, type ToastMessage } from "@/components/Toast";
 import { parseOpenAPI, getBaseUrl } from "@/lib/parser";
-import { convertToN8nNodes, createWorkflow } from "@/lib/converter";
+import { convertToN8nNodes, createWorkflow } from "@/lib/converter/index";
 import type { N8nNode, OpenAPISpec } from "@/types";
 
 const STORAGE_KEY = "n8n-openapi-tabs";
@@ -356,14 +356,17 @@ export default function Home() {
                       </h3>
                       <div className="flex flex-col items-end gap-1">
                         <button
-                          className="btn btn-primary btn-xs gap-1"
+                          className="btn btn-primary btn-xs gap-2"
                           onClick={handleCopyAll}
                           disabled={activeSelectedNodes.length === 0}
                         >
-                          <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                          <span className="relative flex h-3 w-3">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                            <span className="relative inline-flex rounded-full h-3 w-3 bg-white" />
+                          </span>
                           Copy All
                         </button>
-                        <span className="text-[10px] text-base-content/50">
+                        <span className="text-[10px] text-base-content/50 animate-pulse">
                           Copy and paste to n8n workflow
                         </span>
                       </div>

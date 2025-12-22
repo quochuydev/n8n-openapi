@@ -1,9 +1,8 @@
-import { v4 as uuidv4 } from 'uuid';
-import type { OpenAPISpec, Operation, N8nNode, N8nWorkflow } from '../types';
+import type { OpenAPISpec, Operation } from '../../types';
+import type { N8nNode } from '../../types';
+import { HTTP_METHODS, createNode, removeDuplicateHeaders, type AuthHeader } from './shared';
 
-const HTTP_METHODS = ['get', 'post', 'put', 'patch', 'delete', 'options', 'head'] as const;
-
-export function convertToN8nNodes(spec: OpenAPISpec, baseUrl: string): N8nNode[] {
+export function convertOpenAPI3(spec: OpenAPISpec, baseUrl: string): N8nNode[] {
   const nodes: N8nNode[] = [];
   let row = 0;
   const colSpacing = 250;
@@ -16,14 +15,24 @@ export function convertToN8nNodes(spec: OpenAPISpec, baseUrl: string): N8nNode[]
       const operation = pathItem[method] as Operation | undefined;
       if (!operation) continue;
 
-      const node = createNode(
-        method.toUpperCase(),
+      const queryParams = (operation.parameters || []).filter(p => p.in === 'query');
+      const headerParams = (operation.parameters || []).filter(p => p.in === 'header');
+      const authHeaders = getAuthHeaders(operation, spec);
+      const authDescription = getAuthDescription(operation, spec);
+
+      const node = createNode({
+        method: method.toUpperCase(),
         path,
         baseUrl,
-        operation,
-        spec,
-        [col * colSpacing, row * rowSpacing]
-      );
+        operationId: operation.operationId,
+        summary: operation.summary,
+        description: operation.description,
+        queryParams,
+        headerParams,
+        authHeaders,
+        authDescription,
+        position: [col * colSpacing, row * rowSpacing],
+      });
 
       nodes.push(node);
       col++;
@@ -35,70 +44,12 @@ export function convertToN8nNodes(spec: OpenAPISpec, baseUrl: string): N8nNode[]
   return nodes;
 }
 
-function createNode(
-  method: string,
-  path: string,
-  baseUrl: string,
-  operation: Operation,
-  spec: OpenAPISpec,
-  position: [number, number]
-): N8nNode {
-  const name = operation.operationId || `${method} ${path}`;
-  const url = `${baseUrl}${path}`;
-
-  const queryParams = (operation.parameters || []).filter(p => p.in === 'query');
-  const headerParams = (operation.parameters || []).filter(p => p.in === 'header');
-
-  // Get auth headers
-  const authHeaders = getAuthHeaders(operation, spec);
-  const allHeaders = [...headerParams.map(p => ({ name: p.name, value: '' })), ...authHeaders];
-
-  const authDescription = getAuthDescription(operation, spec);
-  const description = [
-    authDescription,
-    operation.summary,
-    operation.description
-  ].filter(Boolean).join('\n');
-
-  const node: N8nNode = {
-    id: uuidv4(),
-    name,
-    type: 'n8n-nodes-base.httpRequest',
-    typeVersion: 4.3,
-    position,
-    parameters: {
-      method,
-      url,
-    }
-  };
-
-  if (queryParams.length > 0) {
-    node.parameters.sendQuery = true;
-    node.parameters.queryParameters = {
-      parameters: queryParams.map(p => ({ name: p.name, value: '' }))
-    };
-  }
-
-  if (allHeaders.length > 0) {
-    node.parameters.sendHeaders = true;
-    node.parameters.headerParameters = {
-      parameters: allHeaders
-    };
-  }
-
-  if (description) {
-    node.parameters.options = { description };
-  }
-
-  return node;
-}
-
-function getAuthHeaders(operation: Operation, spec: OpenAPISpec): { name: string; value: string }[] {
+function getAuthHeaders(operation: Operation, spec: OpenAPISpec): AuthHeader[] {
   const security = operation.security || spec.security;
   if (!security || security.length === 0) return [];
 
   const schemes = spec.components?.securitySchemes || {};
-  const headers: { name: string; value: string }[] = [];
+  const headers: AuthHeader[] = [];
 
   for (const requirement of security) {
     for (const schemeName of Object.keys(requirement)) {
@@ -115,13 +66,7 @@ function getAuthHeaders(operation: Operation, spec: OpenAPISpec): { name: string
     }
   }
 
-  // Remove duplicates by header name
-  const seen = new Set<string>();
-  return headers.filter(h => {
-    if (seen.has(h.name)) return false;
-    seen.add(h.name);
-    return true;
-  });
+  return removeDuplicateHeaders(headers);
 }
 
 function getAuthDescription(operation: Operation, spec: OpenAPISpec): string {
@@ -152,11 +97,4 @@ function getAuthDescription(operation: Operation, spec: OpenAPISpec): string {
 
   if (authTypes.length === 0) return '';
   return `Auth: ${[...new Set(authTypes)].join(', ')}`;
-}
-
-export function createWorkflow(nodes: N8nNode[]): N8nWorkflow {
-  return {
-    nodes,
-    connections: {}
-  };
 }
