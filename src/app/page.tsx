@@ -1,14 +1,14 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import { InputPanel } from '@/components/InputPanel';
-import { NodeList } from '@/components/NodeList';
-import { Toast, type ToastMessage } from '@/components/Toast';
-import { parseOpenAPI, getBaseUrl } from '@/lib/parser';
-import { convertToN8nNodes, createWorkflow } from '@/lib/converter';
-import type { N8nNode, OpenAPISpec } from '@/types';
+import { useState, useEffect, useCallback } from "react";
+import { InputPanel } from "@/components/InputPanel";
+import { NodeList } from "@/components/NodeList";
+import { Toast, type ToastMessage } from "@/components/Toast";
+import { parseOpenAPI, getBaseUrl } from "@/lib/parser";
+import { convertToN8nNodes, createWorkflow } from "@/lib/converter";
+import type { N8nNode, OpenAPISpec } from "@/types";
 
-const STORAGE_KEY = 'n8n-openapi-tabs';
+const STORAGE_KEY = "n8n-openapi-tabs";
 
 interface ConversionTab {
   id: string;
@@ -24,7 +24,7 @@ function extractBaseUrlFromSourceUrl(sourceUrl: string): string {
     const url = new URL(sourceUrl);
     return `${url.protocol}//${url.host}`;
   } catch {
-    return '';
+    return "";
   }
 }
 
@@ -35,15 +35,18 @@ export default function Home() {
   const [tabs, setTabs] = useState<ConversionTab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
-  const [outputText, setOutputText] = useState('');
+  const [outputText, setOutputText] = useState("");
 
-  const addToast = useCallback((type: ToastMessage['type'], message: string) => {
-    const id = crypto.randomUUID();
-    setToasts(prev => [...prev, { id, type, message }]);
-  }, []);
+  const addToast = useCallback(
+    (type: ToastMessage["type"], message: string) => {
+      const id = crypto.randomUUID();
+      setToasts((prev) => [...prev, { id, type, message }]);
+    },
+    []
+  );
 
   const removeToast = useCallback((id: string) => {
-    setToasts(prev => prev.filter(t => t.id !== id));
+    setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
   // Load from localStorage on mount, or load sample if empty
@@ -61,7 +64,7 @@ export default function Home() {
         }
 
         // No saved tabs, load sample
-        const response = await fetch('/pos-swagger.json');
+        const response = await fetch("/pos-swagger.json");
         if (response.ok) {
           const content = await response.text();
           const spec = parseOpenAPI(content);
@@ -69,17 +72,17 @@ export default function Home() {
           const nodes = convertToN8nNodes(spec, baseUrl);
           const sampleTab: ConversionTab = {
             id: crypto.randomUUID(),
-            title: spec.info?.title || 'Sample API',
+            title: spec.info?.title || "Sample API",
             baseUrl,
             nodes,
-            selectedIds: nodes.map(n => n.id),
+            selectedIds: nodes.map((n) => n.id),
             spec,
           };
           setTabs([sampleTab]);
           setActiveTabId(sampleTab.id);
         }
       } catch (e) {
-        console.error('Failed to load initial data:', e);
+        console.error("Failed to load initial data:", e);
       }
     };
 
@@ -91,14 +94,14 @@ export default function Home() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ tabs, activeTabId }));
     } catch (e) {
-      console.error('Failed to save to localStorage:', e);
+      console.error("Failed to save to localStorage:", e);
     }
   };
 
   const handleConvert = async (content: string, sourceUrl?: string) => {
     if (!content.trim()) {
-      setError('Please provide OpenAPI spec content');
-      addToast('error', 'Please provide OpenAPI spec content');
+      setError("Please provide OpenAPI spec content");
+      addToast("error", "Please provide OpenAPI spec content");
       return;
     }
 
@@ -117,10 +120,10 @@ export default function Home() {
       const nodes = convertToN8nNodes(spec, baseUrl);
       const newTab: ConversionTab = {
         id: crypto.randomUUID(),
-        title: spec.info?.title || 'Untitled',
+        title: spec.info?.title || "Untitled",
         baseUrl,
         nodes,
-        selectedIds: nodes.map(n => n.id),
+        selectedIds: nodes.map((n) => n.id),
         spec,
       };
 
@@ -128,27 +131,31 @@ export default function Home() {
       setTabs(newTabs);
       setActiveTabId(newTab.id);
       saveToStorage(newTabs, newTab.id);
-      addToast('success', `Converted "${newTab.title}" with ${nodes.length} nodes`);
+      addToast(
+        "success",
+        `Converted "${newTab.title}" with ${nodes.length} nodes`
+      );
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to parse OpenAPI spec';
+      const message =
+        err instanceof Error ? err.message : "Failed to parse OpenAPI spec";
       setError(message);
-      addToast('error', message);
+      addToast("error", message);
     } finally {
       setLoading(false);
     }
   };
 
   const handleCloseTab = (id: string) => {
-    const tab = tabs.find(t => t.id === id);
+    const tab = tabs.find((t) => t.id === id);
     if (!tab) return;
 
     if (!confirm(`Remove "${tab.title}" tab?`)) return;
 
-    const newTabs = tabs.filter(t => t.id !== id);
+    const newTabs = tabs.filter((t) => t.id !== id);
     let newActiveId = activeTabId;
 
     if (activeTabId === id) {
-      const idx = tabs.findIndex(t => t.id === id);
+      const idx = tabs.findIndex((t) => t.id === id);
       newActiveId = newTabs[idx]?.id || newTabs[idx - 1]?.id || null;
     }
 
@@ -158,7 +165,7 @@ export default function Home() {
   };
 
   const handleUpdateBaseUrl = (tabId: string, newBaseUrl: string) => {
-    const newTabs = tabs.map(tab => {
+    const newTabs = tabs.map((tab) => {
       if (tab.id !== tabId) return tab;
 
       // Reconvert nodes with new base URL
@@ -167,7 +174,7 @@ export default function Home() {
         ...tab,
         baseUrl: newBaseUrl,
         nodes,
-        selectedIds: nodes.map(n => n.id),
+        selectedIds: nodes.map((n) => n.id),
       };
     });
 
@@ -176,7 +183,7 @@ export default function Home() {
   };
 
   const handleToggleNode = (tabId: string, nodeId: string) => {
-    const newTabs = tabs.map(tab => {
+    const newTabs = tabs.map((tab) => {
       if (tab.id !== tabId) return tab;
 
       const selectedSet = new Set(tab.selectedIds);
@@ -195,12 +202,13 @@ export default function Home() {
   const handleCopyNode = (node: N8nNode) => {
     const workflow = createWorkflow([node]);
     navigator.clipboard.writeText(JSON.stringify(workflow, null, 2));
-    addToast('success', 'Node copied to clipboard');
+    addToast("success", "Node copied to clipboard");
   };
 
-  const activeTab = tabs.find(t => t.id === activeTabId);
+  const activeTab = tabs.find((t) => t.id === activeTabId);
   const activeSelectedIds = new Set(activeTab?.selectedIds || []);
-  const activeSelectedNodes = activeTab?.nodes.filter(n => activeSelectedIds.has(n.id)) || [];
+  const activeSelectedNodes =
+    activeTab?.nodes.filter((n) => activeSelectedIds.has(n.id)) || [];
   const activeWorkflow = createWorkflow(activeSelectedNodes);
 
   // Sync output text when selection changes
@@ -210,20 +218,23 @@ export default function Home() {
 
   const handleCopyAll = () => {
     navigator.clipboard.writeText(outputText);
-    addToast('success', `Copied ${activeSelectedNodes.length} nodes to clipboard`);
+    addToast(
+      "success",
+      `Copied ${activeSelectedNodes.length} nodes to clipboard`
+    );
   };
 
   const handleSelectAll = (tabId: string) => {
-    const newTabs = tabs.map(tab => {
+    const newTabs = tabs.map((tab) => {
       if (tab.id !== tabId) return tab;
-      return { ...tab, selectedIds: tab.nodes.map(n => n.id) };
+      return { ...tab, selectedIds: tab.nodes.map((n) => n.id) };
     });
     setTabs(newTabs);
     saveToStorage(newTabs, activeTabId);
   };
 
   const handleUnselectAll = (tabId: string) => {
-    const newTabs = tabs.map(tab => {
+    const newTabs = tabs.map((tab) => {
       if (tab.id !== tabId) return tab;
       return { ...tab, selectedIds: [] };
     });
@@ -251,13 +262,13 @@ export default function Home() {
         <div className="flex flex-col lg:col-span-2">
           {/* Tab Bar */}
           <div className="flex bg-base-300 rounded-t-lg px-2 pt-2 gap-1 overflow-x-auto">
-            {tabs.map(tab => (
+            {tabs.map((tab) => (
               <div
                 key={tab.id}
                 className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-t-lg cursor-pointer transition-colors min-w-0 ${
                   activeTabId === tab.id
-                    ? 'bg-base-200 text-base-content'
-                    : 'bg-base-300 text-base-content/60 hover:text-base-content hover:bg-base-200/50'
+                    ? "bg-base-200 text-base-content"
+                    : "bg-base-300 text-base-content/60 hover:text-base-content hover:bg-base-200/50"
                 }`}
                 onClick={() => setActiveTabId(tab.id)}
               >
@@ -291,7 +302,9 @@ export default function Home() {
                     type="text"
                     className="input input-bordered input-sm flex-1"
                     value={activeTab.baseUrl}
-                    onChange={(e) => handleUpdateBaseUrl(activeTab.id, e.target.value)}
+                    onChange={(e) =>
+                      handleUpdateBaseUrl(activeTab.id, e.target.value)
+                    }
                     placeholder="https://api.example.com"
                   />
                 </div>
@@ -301,12 +314,16 @@ export default function Home() {
                   {/* Nodes */}
                   <div className="flex flex-col lg:col-span-4">
                     <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-semibold">Nodes ({activeTab.nodes.length})</h3>
+                      <h3 className="font-semibold">
+                        Nodes ({activeTab.nodes.length})
+                      </h3>
                       <div className="flex gap-1">
                         <button
                           className="btn btn-ghost btn-xs"
                           onClick={() => handleSelectAll(activeTab.id)}
-                          disabled={activeSelectedIds.size === activeTab.nodes.length}
+                          disabled={
+                            activeSelectedIds.size === activeTab.nodes.length
+                          }
                         >
                           Select All
                         </button>
@@ -319,11 +336,13 @@ export default function Home() {
                         </button>
                       </div>
                     </div>
-                    <div className="flex-1 overflow-auto">
+                    <div className="flex-1 overflow-auto max-h-[70vh]">
                       <NodeList
                         nodes={activeTab.nodes}
                         selectedIds={activeSelectedIds}
-                        onToggle={(nodeId) => handleToggleNode(activeTab.id, nodeId)}
+                        onToggle={(nodeId) =>
+                          handleToggleNode(activeTab.id, nodeId)
+                        }
                         onCopy={handleCopyNode}
                       />
                     </div>
@@ -332,24 +351,28 @@ export default function Home() {
                   {/* Output */}
                   <div className="flex flex-col lg:col-span-6">
                     <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-semibold">Output ({activeSelectedNodes.length} selected)</h3>
-                      <button
-                        className="btn btn-primary btn-xs gap-1"
-                        onClick={handleCopyAll}
-                        disabled={activeSelectedNodes.length === 0}
-                      >
-                        <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
-                        Copy All
-                      </button>
+                      <h3 className="font-semibold">
+                        Output ({activeSelectedNodes.length} selected)
+                      </h3>
+                      <div className="flex flex-col items-end gap-1">
+                        <button
+                          className="btn btn-primary btn-xs gap-1"
+                          onClick={handleCopyAll}
+                          disabled={activeSelectedNodes.length === 0}
+                        >
+                          <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                          Copy All
+                        </button>
+                        <span className="text-[10px] text-base-content/50">
+                          Copy and paste to n8n workflow
+                        </span>
+                      </div>
                     </div>
                     <textarea
-                      className="textarea textarea-bordered flex-1 font-mono text-xs w-full min-h-48"
+                      className="textarea textarea-bordered font-mono text-xs w-full flex-1 max-h-[70vh] min-h-48"
                       value={outputText}
                       onChange={(e) => setOutputText(e.target.value)}
                     />
-                    <p className="text-xs text-base-content/50 mt-2 shrink-0">
-                      Copy and paste to n8n workflow page
-                    </p>
                   </div>
                 </div>
               </div>
