@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { InputPanel } from '@/components/InputPanel';
-import { BaseUrlSelector } from '@/components/BaseUrlSelector';
 import { NodeList } from '@/components/NodeList';
 import { JsonOutput } from '@/components/JsonOutput';
-import { parseOpenAPI, getBaseUrl, getServers, type Server } from '@/lib/parser';
+import { Toast, type ToastMessage } from '@/components/Toast';
+import { parseOpenAPI, getBaseUrl } from '@/lib/parser';
 import { convertToN8nNodes, createWorkflow } from '@/lib/converter';
 import type { N8nNode, OpenAPISpec } from '@/types';
 
@@ -17,17 +17,34 @@ interface ConversionTab {
   baseUrl: string;
   nodes: N8nNode[];
   selectedIds: string[];
+  spec: OpenAPISpec;
+}
+
+function extractBaseUrlFromSourceUrl(sourceUrl: string): string {
+  try {
+    const url = new URL(sourceUrl);
+    return `${url.protocol}//${url.host}`;
+  } catch {
+    return '';
+  }
 }
 
 export default function Home() {
-  const [spec, setSpec] = useState<OpenAPISpec | null>(null);
-  const [servers, setServers] = useState<Server[]>([]);
-  const [baseUrl, setBaseUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [tabs, setTabs] = useState<ConversionTab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  const addToast = useCallback((type: ToastMessage['type'], message: string) => {
+    const id = crypto.randomUUID();
+    setToasts(prev => [...prev, { id, type, message }]);
+  }, []);
+
+  const removeToast = useCallback((id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -52,9 +69,10 @@ export default function Home() {
     }
   };
 
-  const handleParse = async (content: string) => {
+  const handleConvert = async (content: string, sourceUrl?: string) => {
     if (!content.trim()) {
       setError('Please provide OpenAPI spec content');
+      addToast('error', 'Please provide OpenAPI spec content');
       return;
     }
 
@@ -62,46 +80,44 @@ export default function Home() {
     setError(null);
 
     try {
-      const parsedSpec = parseOpenAPI(content);
-      setSpec(parsedSpec);
+      const spec = parseOpenAPI(content);
 
-      const detectedServers = getServers(parsedSpec);
-      setServers(detectedServers);
+      // Get base URL: from spec, or extract from source URL
+      let baseUrl = getBaseUrl(spec);
+      if (!baseUrl && sourceUrl) {
+        baseUrl = extractBaseUrlFromSourceUrl(sourceUrl);
+      }
 
-      const detectedBaseUrl = getBaseUrl(parsedSpec);
-      setBaseUrl(detectedBaseUrl);
+      const nodes = convertToN8nNodes(spec, baseUrl);
+      const newTab: ConversionTab = {
+        id: crypto.randomUUID(),
+        title: spec.info?.title || 'Untitled',
+        baseUrl,
+        nodes,
+        selectedIds: nodes.map(n => n.id),
+        spec,
+      };
+
+      const newTabs = [...tabs, newTab];
+      setTabs(newTabs);
+      setActiveTabId(newTab.id);
+      saveToStorage(newTabs, newTab.id);
+      addToast('success', `Converted "${newTab.title}" with ${nodes.length} nodes`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to parse OpenAPI spec');
-      setSpec(null);
-      setServers([]);
+      const message = err instanceof Error ? err.message : 'Failed to parse OpenAPI spec';
+      setError(message);
+      addToast('error', message);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleConvert = () => {
-    if (!spec) return;
-
-    const nodes = convertToN8nNodes(spec, baseUrl);
-    const newTab: ConversionTab = {
-      id: crypto.randomUUID(),
-      title: spec.info?.title || 'Untitled',
-      baseUrl,
-      nodes,
-      selectedIds: nodes.map(n => n.id),
-    };
-
-    const newTabs = [...tabs, newTab];
-    setTabs(newTabs);
-    setActiveTabId(newTab.id);
-    saveToStorage(newTabs, newTab.id);
-
-    setSpec(null);
-    setServers([]);
-    setBaseUrl('');
-  };
-
   const handleCloseTab = (id: string) => {
+    const tab = tabs.find(t => t.id === id);
+    if (!tab) return;
+
+    if (!confirm(`Remove "${tab.title}" tab?`)) return;
+
     const newTabs = tabs.filter(t => t.id !== id);
     let newActiveId = activeTabId;
 
@@ -113,6 +129,24 @@ export default function Home() {
     setTabs(newTabs);
     setActiveTabId(newActiveId);
     saveToStorage(newTabs, newActiveId);
+  };
+
+  const handleUpdateBaseUrl = (tabId: string, newBaseUrl: string) => {
+    const newTabs = tabs.map(tab => {
+      if (tab.id !== tabId) return tab;
+
+      // Reconvert nodes with new base URL
+      const nodes = convertToN8nNodes(tab.spec, newBaseUrl);
+      return {
+        ...tab,
+        baseUrl: newBaseUrl,
+        nodes,
+        selectedIds: nodes.map(n => n.id),
+      };
+    });
+
+    setTabs(newTabs);
+    saveToStorage(newTabs, activeTabId);
   };
 
   const handleToggleNode = (tabId: string, nodeId: string) => {
@@ -135,6 +169,7 @@ export default function Home() {
   const handleCopyNode = (node: N8nNode) => {
     const workflow = createWorkflow([node]);
     navigator.clipboard.writeText(JSON.stringify(workflow, null, 2));
+    addToast('success', 'Node copied to clipboard');
   };
 
   const activeTab = tabs.find(t => t.id === activeTabId);
@@ -144,6 +179,7 @@ export default function Home() {
 
   const handleCopyAll = () => {
     navigator.clipboard.writeText(JSON.stringify(activeWorkflow, null, 2));
+    addToast('success', `Copied ${activeSelectedNodes.length} nodes to clipboard`);
   };
 
   return (
@@ -156,45 +192,10 @@ export default function Home() {
         {/* Column 1 - Convert Form */}
         <div className="flex flex-col gap-4">
           <InputPanel
-            onParse={handleParse}
+            onConvert={handleConvert}
             loading={loading}
             error={error}
           />
-
-          {spec && servers.length > 0 && (
-            <div className="card bg-base-200 p-4">
-              <BaseUrlSelector
-                servers={servers}
-                selectedUrl={baseUrl}
-                onSelect={setBaseUrl}
-              />
-              <button
-                className="btn btn-primary mt-4 w-full"
-                onClick={handleConvert}
-              >
-                Convert
-              </button>
-            </div>
-          )}
-
-          {spec && servers.length === 0 && (
-            <div className="card bg-base-200 p-4">
-              <p className="text-sm text-base-content/70 mb-2">No servers found in spec</p>
-              <input
-                type="text"
-                className="input input-bordered w-full mb-4"
-                placeholder="Enter base URL"
-                value={baseUrl}
-                onChange={(e) => setBaseUrl(e.target.value)}
-              />
-              <button
-                className="btn btn-primary w-full"
-                onClick={handleConvert}
-              >
-                Convert
-              </button>
-            </div>
-          )}
         </div>
 
         {/* Column 2-3 - Browser Tabs */}
@@ -233,26 +234,41 @@ export default function Home() {
           {/* Tab Content - Nodes + Output */}
           <div className="bg-base-200 rounded-b-lg rounded-tr-lg p-4 flex-1 overflow-auto">
             {activeTab ? (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full">
-                {/* Nodes */}
-                <div className="flex flex-col">
-                  <h3 className="font-semibold mb-2">Nodes ({activeTab.nodes.length})</h3>
-                  <div className="flex-1 overflow-auto">
-                    <NodeList
-                      nodes={activeTab.nodes}
-                      selectedIds={activeSelectedIds}
-                      onToggle={(nodeId) => handleToggleNode(activeTab.id, nodeId)}
-                      onCopy={handleCopyNode}
-                    />
-                  </div>
+              <div className="flex flex-col gap-4 h-full">
+                {/* Base URL Editor */}
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium">Base URL:</label>
+                  <input
+                    type="text"
+                    className="input input-bordered input-sm flex-1"
+                    value={activeTab.baseUrl}
+                    onChange={(e) => handleUpdateBaseUrl(activeTab.id, e.target.value)}
+                    placeholder="https://api.example.com"
+                  />
                 </div>
 
-                {/* Output */}
-                <div className="flex flex-col">
-                  <JsonOutput
-                    workflow={activeWorkflow}
-                    onCopyAll={handleCopyAll}
-                  />
+                {/* Nodes + Output */}
+                <div className="grid grid-cols-1 lg:grid-cols-10 gap-4 flex-1">
+                  {/* Nodes */}
+                  <div className="flex flex-col lg:col-span-4">
+                    <h3 className="font-semibold mb-2">Nodes ({activeTab.nodes.length})</h3>
+                    <div className="flex-1 overflow-auto">
+                      <NodeList
+                        nodes={activeTab.nodes}
+                        selectedIds={activeSelectedIds}
+                        onToggle={(nodeId) => handleToggleNode(activeTab.id, nodeId)}
+                        onCopy={handleCopyNode}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Output */}
+                  <div className="flex flex-col lg:col-span-6">
+                    <JsonOutput
+                      workflow={activeWorkflow}
+                      onCopyAll={handleCopyAll}
+                    />
+                  </div>
                 </div>
               </div>
             ) : (
@@ -263,6 +279,8 @@ export default function Home() {
           </div>
         </div>
       </main>
+
+      <Toast toasts={toasts} onRemove={removeToast} />
     </div>
   );
 }

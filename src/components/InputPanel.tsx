@@ -5,19 +5,19 @@ import { useState } from 'react';
 type InputMethod = 'url' | 'paste' | 'upload';
 
 interface InputPanelProps {
-  onParse: (content: string) => void;
+  onConvert: (content: string, sourceUrl?: string) => void;
   loading: boolean;
   error: string | null;
 }
 
-export function InputPanel({ onParse, loading, error }: InputPanelProps) {
+export function InputPanel({ onConvert, loading, error }: InputPanelProps) {
   const [activeTab, setActiveTab] = useState<InputMethod>('url');
   const [pasteContent, setPasteContent] = useState('');
   const [urlInput, setUrlInput] = useState('');
 
   const handleSubmit = async () => {
     if (activeTab === 'paste') {
-      onParse(pasteContent);
+      onConvert(pasteContent);
     } else if (activeTab === 'url') {
       try {
         const response = await fetch(`/api/fetch?url=${encodeURIComponent(urlInput)}`);
@@ -26,9 +26,9 @@ export function InputPanel({ onParse, loading, error }: InputPanelProps) {
           throw new Error(error.error || 'Failed to fetch');
         }
         const text = await response.text();
-        onParse(text);
+        onConvert(text, urlInput);
       } catch {
-        onParse('');
+        onConvert('');
       }
     }
   };
@@ -40,7 +40,7 @@ export function InputPanel({ onParse, loading, error }: InputPanelProps) {
     const reader = new FileReader();
     reader.onload = (event) => {
       const content = event.target?.result as string;
-      onParse(content);
+      onConvert(content);
     };
     reader.readAsText(file);
   };
