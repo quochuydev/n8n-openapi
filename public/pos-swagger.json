@@ -1,0 +1,472 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "POS Bot API",
+    "description": "API for POS (Point of Sale) loyalty program bot. Manage customers, track points, and handle reward redemptions.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "API Support"
+    },
+    "license": {
+      "name": "MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:12345",
+      "description": "Local development server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Customers",
+      "description": "Customer management operations"
+    },
+    {
+      "name": "Points",
+      "description": "Points management operations"
+    },
+    {
+      "name": "Rewards",
+      "description": "Reward information and redemption"
+    },
+    {
+      "name": "History",
+      "description": "Transaction history"
+    },
+    {
+      "name": "Admin",
+      "description": "Administrative operations"
+    }
+  ],
+  "paths": {
+    "/api/customers": {
+      "get": {
+        "tags": ["Customers"],
+        "summary": "Get all customers",
+        "description": "Retrieves a list of all registered customers with their details and point balances.",
+        "operationId": "getCustomers",
+        "security": [
+          {
+            "basicAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of customers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Customer"
+                  }
+                },
+                "example": [
+                  {
+                    "_id": "507f1f77bcf86cd799439011",
+                    "firstName": "John",
+                    "username": "johndoe",
+                    "telegramUserId": "123456789",
+                    "score": 10
+                  }
+                ]
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing credentials",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Unauthorized"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rewards": {
+      "get": {
+        "tags": ["Rewards"],
+        "summary": "Get available rewards",
+        "description": "Retrieves a list of all available reward types and their point costs.",
+        "operationId": "getRewards",
+        "responses": {
+          "200": {
+            "description": "List of available rewards",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Reward"
+                  }
+                },
+                "example": [
+                  {
+                    "type": "drink",
+                    "points": 2
+                  },
+                  {
+                    "type": "food",
+                    "points": 4
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/increase-points": {
+      "post": {
+        "tags": ["Points"],
+        "summary": "Add points to a customer",
+        "description": "Increases a customer's point balance by the specified amount. Optionally sends a Telegram notification to the customer.",
+        "operationId": "increasePoints",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IncreasePointsRequest"
+              },
+              "example": {
+                "customerId": "507f1f77bcf86cd799439011",
+                "points": 5
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Points added successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PointsResponse"
+                },
+                "example": {
+                  "success": true,
+                  "newScore": 15
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - Invalid request body or customer ID",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Invalid customer ID"
+              }
+            }
+          },
+          "404": {
+            "description": "Customer not found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Customer not found"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/redeem": {
+      "post": {
+        "tags": ["Rewards"],
+        "summary": "Redeem points for a reward",
+        "description": "Deducts points from a customer's balance to redeem a reward. Validates sufficient balance before processing. Optionally sends a Telegram notification.",
+        "operationId": "redeemReward",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RedeemRequest"
+              },
+              "example": {
+                "customerId": "507f1f77bcf86cd799439011",
+                "type": "drink"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reward redeemed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PointsResponse"
+                },
+                "example": {
+                  "success": true,
+                  "newScore": 8
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - Invalid request, insufficient points, or invalid reward type",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                },
+                "examples": {
+                  "invalidType": {
+                    "value": "Invalid reward type"
+                  },
+                  "insufficientPoints": {
+                    "value": "Not enough points"
+                  },
+                  "invalidId": {
+                    "value": "Invalid customer ID"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Customer not found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Customer not found"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/histories": {
+      "get": {
+        "tags": ["History"],
+        "summary": "Get transaction history",
+        "description": "Retrieves all point transactions including increases and redemptions.",
+        "operationId": "getHistories",
+        "security": [
+          {
+            "basicAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of transactions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/History"
+                  }
+                },
+                "example": [
+                  {
+                    "customer_id": "507f1f77bcf86cd799439011",
+                    "score": 5,
+                    "type": "increase",
+                    "timestamp": 1703203200
+                  },
+                  {
+                    "customer_id": "507f1f77bcf86cd799439011",
+                    "score": 2,
+                    "type": "redeem_drink",
+                    "timestamp": 1703206800
+                  }
+                ]
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing credentials",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Unauthorized"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/nuke": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Reset database",
+        "description": "⚠️ **DANGER**: Completely wipes the database. This action is irreversible. Use with extreme caution.",
+        "operationId": "nukeDatabase",
+        "security": [
+          {
+            "basicAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Database wiped successfully"
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing credentials",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Unauthorized"
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden - Invalid token"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Customer": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string",
+            "description": "MongoDB ObjectID",
+            "example": "507f1f77bcf86cd799439011"
+          },
+          "firstName": {
+            "type": "string",
+            "description": "Customer's first name",
+            "example": "John"
+          },
+          "username": {
+            "type": "string",
+            "description": "Telegram username",
+            "example": "johndoe"
+          },
+          "telegramUserId": {
+            "type": "string",
+            "description": "Telegram user ID",
+            "example": "123456789"
+          },
+          "score": {
+            "type": "number",
+            "description": "Current point balance",
+            "example": 10
+          }
+        }
+      },
+      "Reward": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["drink", "food"],
+            "description": "Type of reward",
+            "example": "drink"
+          },
+          "points": {
+            "type": "number",
+            "description": "Points required to redeem",
+            "example": 2
+          }
+        }
+      },
+      "History": {
+        "type": "object",
+        "properties": {
+          "customer_id": {
+            "type": "string",
+            "description": "Customer's MongoDB ObjectID",
+            "example": "507f1f77bcf86cd799439011"
+          },
+          "score": {
+            "type": "number",
+            "description": "Points involved in transaction",
+            "example": 5
+          },
+          "type": {
+            "type": "string",
+            "enum": ["increase", "redeem_drink", "redeem_food"],
+            "description": "Transaction type",
+            "example": "increase"
+          },
+          "timestamp": {
+            "type": "integer",
+            "description": "Unix timestamp of transaction",
+            "example": 1703203200
+          }
+        }
+      },
+      "IncreasePointsRequest": {
+        "type": "object",
+        "required": ["customerId", "points"],
+        "properties": {
+          "customerId": {
+            "type": "string",
+            "description": "Customer's MongoDB ObjectID",
+            "example": "507f1f77bcf86cd799439011"
+          },
+          "points": {
+            "type": "number",
+            "description": "Number of points to add",
+            "minimum": 1,
+            "example": 5
+          }
+        }
+      },
+      "RedeemRequest": {
+        "type": "object",
+        "required": ["customerId", "type"],
+        "properties": {
+          "customerId": {
+            "type": "string",
+            "description": "Customer's MongoDB ObjectID",
+            "example": "507f1f77bcf86cd799439011"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["drink", "food"],
+            "description": "Type of reward to redeem",
+            "example": "drink"
+          }
+        }
+      },
+      "PointsResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the operation succeeded",
+            "example": true
+          },
+          "newScore": {
+            "type": "number",
+            "description": "Customer's new point balance",
+            "example": 15
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "basicAuth": {
+        "type": "http",
+        "scheme": "basic",
+        "description": "Basic authentication using ADMIN_USER and ADMIN_PASS credentials"
+      }
+    }
+  }
+}

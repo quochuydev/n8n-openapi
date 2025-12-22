@@ -1,2 +1,26 @@
 @import "tailwindcss";
 @plugin "daisyui";
+
+/* Custom n8n brand color #E94B70 */
+:root, [data-theme], [data-theme="light"], [data-theme="dark"] {
+  --p: #E94B70;
+  --pc: #ffffff;
+  --primary: #E94B70;
+  --primary-content: #ffffff;
+}
+
+.btn-primary {
+  background-color: #E94B70 !important;
+  border-color: #E94B70 !important;
+  color: #ffffff !important;
+}
+
+.btn-primary:hover {
+  background-color: #d43d61 !important;
+  border-color: #d43d61 !important;
+}
+
+.checkbox-primary:checked {
+  background-color: #E94B70 !important;
+  border-color: #E94B70 !important;
+}

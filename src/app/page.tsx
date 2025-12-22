@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { InputPanel } from '@/components/InputPanel';
 import { NodeList } from '@/components/NodeList';
-import { JsonOutput } from '@/components/JsonOutput';
 import { Toast, type ToastMessage } from '@/components/Toast';
 import { parseOpenAPI, getBaseUrl } from '@/lib/parser';
 import { convertToN8nNodes, createWorkflow } from '@/lib/converter';
@@ -46,18 +45,44 @@ export default function Home() {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
-  // Load from localStorage on mount
+  // Load from localStorage on mount, or load sample if empty
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const data = JSON.parse(stored);
-        setTabs(data.tabs || []);
-        setActiveTabId(data.activeTabId || null);
+    const loadInitialData = async () => {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          const data = JSON.parse(stored);
+          if (data.tabs && data.tabs.length > 0) {
+            setTabs(data.tabs);
+            setActiveTabId(data.activeTabId || null);
+            return;
+          }
+        }
+
+        // No saved tabs, load sample
+        const response = await fetch('/pos-swagger.json');
+        if (response.ok) {
+          const content = await response.text();
+          const spec = parseOpenAPI(content);
+          const baseUrl = getBaseUrl(spec);
+          const nodes = convertToN8nNodes(spec, baseUrl);
+          const sampleTab: ConversionTab = {
+            id: crypto.randomUUID(),
+            title: spec.info?.title || 'Sample API',
+            baseUrl,
+            nodes,
+            selectedIds: nodes.map(n => n.id),
+            spec,
+          };
+          setTabs([sampleTab]);
+          setActiveTabId(sampleTab.id);
+        }
+      } catch (e) {
+        console.error('Failed to load initial data:', e);
       }
-    } catch (e) {
-      console.error('Failed to load from localStorage:', e);
-    }
+    };
+
+    loadInitialData();
   }, []);
 
   // Save to localStorage
@@ -182,6 +207,24 @@ export default function Home() {
     addToast('success', `Copied ${activeSelectedNodes.length} nodes to clipboard`);
   };
 
+  const handleSelectAll = (tabId: string) => {
+    const newTabs = tabs.map(tab => {
+      if (tab.id !== tabId) return tab;
+      return { ...tab, selectedIds: tab.nodes.map(n => n.id) };
+    });
+    setTabs(newTabs);
+    saveToStorage(newTabs, activeTabId);
+  };
+
+  const handleUnselectAll = (tabId: string) => {
+    const newTabs = tabs.map(tab => {
+      if (tab.id !== tabId) return tab;
+      return { ...tab, selectedIds: [] };
+    });
+    setTabs(newTabs);
+    saveToStorage(newTabs, activeTabId);
+  };
+
   return (
     <div className="min-h-screen bg-base-100 flex flex-col">
       <header className="navbar bg-base-200 px-6">
@@ -251,7 +294,25 @@ export default function Home() {
                 <div className="grid grid-cols-1 lg:grid-cols-10 gap-4 flex-1">
                   {/* Nodes */}
                   <div className="flex flex-col lg:col-span-4">
-                    <h3 className="font-semibold mb-2">Nodes ({activeTab.nodes.length})</h3>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="font-semibold">Nodes ({activeTab.nodes.length})</h3>
+                      <div className="flex gap-1">
+                        <button
+                          className="btn btn-ghost btn-xs"
+                          onClick={() => handleSelectAll(activeTab.id)}
+                          disabled={activeSelectedIds.size === activeTab.nodes.length}
+                        >
+                          Select All
+                        </button>
+                        <button
+                          className="btn btn-ghost btn-xs"
+                          onClick={() => handleUnselectAll(activeTab.id)}
+                          disabled={activeSelectedIds.size === 0}
+                        >
+                          Unselect All
+                        </button>
+                      </div>
+                    </div>
                     <div className="flex-1 overflow-auto">
                       <NodeList
                         nodes={activeTab.nodes}
@@ -264,9 +325,19 @@ export default function Home() {
 
                   {/* Output */}
                   <div className="flex flex-col lg:col-span-6">
-                    <JsonOutput
-                      workflow={activeWorkflow}
-                      onCopyAll={handleCopyAll}
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="font-semibold">Output ({activeSelectedNodes.length} selected)</h3>
+                      <button
+                        className="btn btn-primary btn-xs"
+                        onClick={handleCopyAll}
+                        disabled={activeSelectedNodes.length === 0}
+                      >
+                        Copy All
+                      </button>
+                    </div>
+                    <textarea
+                      className="textarea textarea-bordered flex-1 font-mono text-xs w-full"
+                      defaultValue={JSON.stringify(activeWorkflow, null, 2)}
                     />
                   </div>
                 </div>
