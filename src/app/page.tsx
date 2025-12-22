@@ -36,7 +36,6 @@ export default function Home() {
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [outputText, setOutputText] = useState('');
-  const [copied, setCopied] = useState(false);
 
   const addToast = useCallback((type: ToastMessage['type'], message: string) => {
     const id = crypto.randomUUID();
@@ -212,8 +211,6 @@ export default function Home() {
   const handleCopyAll = () => {
     navigator.clipboard.writeText(outputText);
     addToast('success', `Copied ${activeSelectedNodes.length} nodes to clipboard`);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
   };
 
   const handleSelectAll = (tabId: string) => {
@@ -341,18 +338,16 @@ export default function Home() {
                         onClick={handleCopyAll}
                         disabled={activeSelectedNodes.length === 0}
                       >
-                        {copied && (
-                          <span className="w-2 h-2 bg-white rounded-full animate-ping" />
-                        )}
+                        <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
                         Copy All
                       </button>
                     </div>
                     <textarea
-                      className="textarea textarea-bordered flex-1 font-mono text-xs w-full"
+                      className="textarea textarea-bordered flex-1 font-mono text-xs w-full min-h-48"
                       value={outputText}
                       onChange={(e) => setOutputText(e.target.value)}
                     />
-                    <p className="text-xs text-base-content/50 mt-2">
+                    <p className="text-xs text-base-content/50 mt-2 shrink-0">
                       Copy and paste to n8n workflow page
                     </p>
                   </div>
