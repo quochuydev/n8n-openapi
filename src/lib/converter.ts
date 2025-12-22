@@ -49,6 +49,10 @@ function createNode(
   const queryParams = (operation.parameters || []).filter(p => p.in === 'query');
   const headerParams = (operation.parameters || []).filter(p => p.in === 'header');
 
+  // Get auth headers
+  const authHeaders = getAuthHeaders(operation, spec);
+  const allHeaders = [...headerParams.map(p => ({ name: p.name, value: '' })), ...authHeaders];
+
   const authDescription = getAuthDescription(operation, spec);
   const description = [
     authDescription,
@@ -75,10 +79,10 @@ function createNode(
     };
   }
 
-  if (headerParams.length > 0) {
+  if (allHeaders.length > 0) {
     node.parameters.sendHeaders = true;
     node.parameters.headerParameters = {
-      parameters: headerParams.map(p => ({ name: p.name, value: '' }))
+      parameters: allHeaders
     };
   }
 
@@ -87,6 +91,37 @@ function createNode(
   }
 
   return node;
+}
+
+function getAuthHeaders(operation: Operation, spec: OpenAPISpec): { name: string; value: string }[] {
+  const security = operation.security || spec.security;
+  if (!security || security.length === 0) return [];
+
+  const schemes = spec.components?.securitySchemes || {};
+  const headers: { name: string; value: string }[] = [];
+
+  for (const requirement of security) {
+    for (const schemeName of Object.keys(requirement)) {
+      const scheme = schemes[schemeName];
+      if (scheme) {
+        if (scheme.type === 'http' && scheme.scheme === 'bearer') {
+          headers.push({ name: 'Authorization', value: 'Bearer {{token}}' });
+        } else if (scheme.type === 'http' && scheme.scheme === 'basic') {
+          headers.push({ name: 'Authorization', value: 'Basic {{credentials}}' });
+        } else if (scheme.type === 'apiKey' && scheme.in === 'header' && scheme.name) {
+          headers.push({ name: scheme.name, value: '{{apiKey}}' });
+        }
+      }
+    }
+  }
+
+  // Remove duplicates by header name
+  const seen = new Set<string>();
+  return headers.filter(h => {
+    if (seen.has(h.name)) return false;
+    seen.add(h.name);
+    return true;
+  });
 }
 
 function getAuthDescription(operation: Operation, spec: OpenAPISpec): string {
