@@ -36,6 +36,7 @@ export default function Home() {
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [outputText, setOutputText] = useState("");
+  const [showDemoModal, setShowDemoModal] = useState(false);
 
   const addToast = useCallback(
     (type: ToastMessage["type"], message: string) => {
@@ -216,6 +217,17 @@ export default function Home() {
     setOutputText(JSON.stringify(activeWorkflow, null, 2));
   }, [activeTabId, activeTab?.selectedIds]);
 
+  // Handle Escape key to close demo modal
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && showDemoModal) {
+        setShowDemoModal(false);
+      }
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [showDemoModal]);
+
   const handleCopyAll = () => {
     navigator.clipboard.writeText(outputText);
     addToast(
@@ -248,18 +260,52 @@ export default function Home() {
         <h1 className="text-xl font-bold">OpenAPI to n8n Converter</h1>
       </header>
 
-      <main className="flex-1 p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Column 1 - Convert Form */}
-        <div className="flex flex-col gap-4">
+      <main className="flex-1 p-6 grid grid-cols-1 lg:grid-cols-10 gap-6">
+        {/* Column 1 - Convert Form (3/10) */}
+        <div className="flex flex-col gap-4 lg:col-span-3">
           <InputPanel
             onConvert={handleConvert}
             loading={loading}
             error={error}
           />
+
+          {/* Demo Video Thumbnail */}
+          <div className="card bg-base-200 p-3">
+            <button
+              className="relative group cursor-pointer w-full"
+              onClick={() => setShowDemoModal(true)}
+            >
+              <video
+                className="w-full rounded-lg opacity-80 group-hover:opacity-100 transition-opacity"
+                muted
+                loop
+                playsInline
+                autoPlay
+              >
+                <source src="/demo.mov" type="video/quicktime" />
+                <source src="/demo.mov" type="video/mp4" />
+              </video>
+              {/* Play Button Overlay */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="bg-black/50 rounded-full p-3 group-hover:bg-black/70 group-hover:scale-110 transition-all">
+                  <svg
+                    className="w-8 h-8 text-white"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                </div>
+              </div>
+              <div className="absolute bottom-2 left-2 text-xs text-white bg-black/60 px-2 py-1 rounded">
+                Watch Demo
+              </div>
+            </button>
+          </div>
         </div>
 
-        {/* Column 2-3 - Browser Tabs */}
-        <div className="flex flex-col lg:col-span-2">
+        {/* Column 2 - Browser Tabs (7/10) */}
+        <div className="flex flex-col lg:col-span-7">
           {/* Tab Bar */}
           <div className="flex bg-base-300 rounded-t-lg px-2 pt-2 gap-1 overflow-x-auto">
             {tabs.map((tab) => (
@@ -389,6 +435,43 @@ export default function Home() {
       </main>
 
       <Toast toasts={toasts} onRemove={removeToast} />
+
+      {/* Demo Video Modal */}
+      {showDemoModal && (
+        <dialog
+          className="modal modal-open"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowDemoModal(false);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setShowDemoModal(false);
+          }}
+        >
+          <div className="modal-box max-w-4xl w-full p-0 bg-black">
+            <button
+              className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2 z-10 text-white hover:bg-white/20"
+              onClick={() => setShowDemoModal(false)}
+            >
+              ✕
+            </button>
+            <video
+              className="w-full rounded-lg"
+              autoPlay
+              muted
+              loop
+              playsInline
+              controls
+            >
+              <source src="/demo.mov" type="video/quicktime" />
+              <source src="/demo.mov" type="video/mp4" />
+              Your browser does not support the video tag.
+            </video>
+          </div>
+          <form method="dialog" className="modal-backdrop bg-black/80">
+            <button onClick={() => setShowDemoModal(false)}>close</button>
+          </form>
+        </dialog>
+      )}
     </div>
   );
 }
