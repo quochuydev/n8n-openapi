@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-type InputMethod = 'paste' | 'upload' | 'url';
+type InputMethod = 'url' | 'paste' | 'upload';
 
 interface InputPanelProps {
   onParse: (content: string) => void;
@@ -11,7 +11,7 @@ interface InputPanelProps {
 }
 
 export function InputPanel({ onParse, loading, error }: InputPanelProps) {
-  const [activeTab, setActiveTab] = useState<InputMethod>('paste');
+  const [activeTab, setActiveTab] = useState<InputMethod>('url');
   const [pasteContent, setPasteContent] = useState('');
   const [urlInput, setUrlInput] = useState('');
 
@@ -50,6 +50,13 @@ export function InputPanel({ onParse, loading, error }: InputPanelProps) {
       <div role="tablist" className="tabs tabs-boxed mb-4">
         <button
           role="tab"
+          className={`tab ${activeTab === 'url' ? 'tab-active' : ''}`}
+          onClick={() => setActiveTab('url')}
+        >
+          URL
+        </button>
+        <button
+          role="tab"
           className={`tab ${activeTab === 'paste' ? 'tab-active' : ''}`}
           onClick={() => setActiveTab('paste')}
         >
@@ -62,14 +69,17 @@ export function InputPanel({ onParse, loading, error }: InputPanelProps) {
         >
           Upload
         </button>
-        <button
-          role="tab"
-          className={`tab ${activeTab === 'url' ? 'tab-active' : ''}`}
-          onClick={() => setActiveTab('url')}
-        >
-          URL
-        </button>
       </div>
+
+      {activeTab === 'url' && (
+        <input
+          type="url"
+          className="input input-bordered w-full"
+          placeholder="https://api.example.com/swagger.json"
+          value={urlInput}
+          onChange={(e) => setUrlInput(e.target.value)}
+        />
+      )}
 
       {activeTab === 'paste' && (
         <textarea
@@ -86,16 +96,6 @@ export function InputPanel({ onParse, loading, error }: InputPanelProps) {
           className="file-input file-input-bordered w-full"
           accept=".json,.yaml,.yml"
           onChange={handleFileUpload}
-        />
-      )}
-
-      {activeTab === 'url' && (
-        <input
-          type="url"
-          className="input input-bordered w-full"
-          placeholder="https://api.example.com/swagger.json"
-          value={urlInput}
-          onChange={(e) => setUrlInput(e.target.value)}
         />
       )}
 
