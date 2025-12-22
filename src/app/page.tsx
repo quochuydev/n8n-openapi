@@ -258,6 +258,18 @@ export default function Home() {
     <div className="min-h-screen bg-base-100 flex flex-col">
       <header className="navbar bg-base-200 px-6">
         <h1 className="text-xl font-bold">OpenAPI to n8n Converter</h1>
+        <a
+          href="https://github.com/quochuydev/n8n-openapi"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="ml-2"
+        >
+          <img
+            src="https://img.shields.io/github/stars/quochuydev/n8n-openapi?style=social"
+            alt="GitHub stars"
+            className="h-5"
+          />
+        </a>
       </header>
 
       <main className="flex-1 p-6 grid grid-cols-1 lg:grid-cols-10 gap-6">
