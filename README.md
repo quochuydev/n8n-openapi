@@ -6,8 +6,6 @@ Convert OpenAPI/Swagger specs into n8n HTTP Request nodes instantly.
 
 ![Screenshot](./public/screen.png)
 
-https://github.com/user-attachments/assets/demo.mov
-
 ## Features
 
 - **OpenAPI 3.x & Swagger 2.0** - JSON and YAML supported
@@ -24,15 +22,6 @@ https://github.com/user-attachments/assets/demo.mov
 2. Click **Parse & Convert**
 3. Select the endpoints you want
 4. Click **Copy All** and paste into n8n
-
-## Run Locally
-
-```bash
-npm install
-npm run dev
-```
-
-Open http://localhost:3000
 
 ## License
 
