@@ -35,6 +35,7 @@ export default function Home() {
   const [tabs, setTabs] = useState<ConversionTab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [outputText, setOutputText] = useState('');
 
   const addToast = useCallback((type: ToastMessage['type'], message: string) => {
     const id = crypto.randomUUID();
@@ -202,8 +203,13 @@ export default function Home() {
   const activeSelectedNodes = activeTab?.nodes.filter(n => activeSelectedIds.has(n.id)) || [];
   const activeWorkflow = createWorkflow(activeSelectedNodes);
 
+  // Sync output text when selection changes
+  useEffect(() => {
+    setOutputText(JSON.stringify(activeWorkflow, null, 2));
+  }, [activeTabId, activeTab?.selectedIds]);
+
   const handleCopyAll = () => {
-    navigator.clipboard.writeText(JSON.stringify(activeWorkflow, null, 2));
+    navigator.clipboard.writeText(outputText);
     addToast('success', `Copied ${activeSelectedNodes.length} nodes to clipboard`);
   };
 
@@ -337,7 +343,8 @@ export default function Home() {
                     </div>
                     <textarea
                       className="textarea textarea-bordered flex-1 font-mono text-xs w-full"
-                      defaultValue={JSON.stringify(activeWorkflow, null, 2)}
+                      value={outputText}
+                      onChange={(e) => setOutputText(e.target.value)}
                     />
                   </div>
                 </div>
