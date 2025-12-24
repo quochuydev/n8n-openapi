@@ -4,11 +4,40 @@ import { useState, useEffect, useCallback } from "react";
 import { InputPanel } from "@/components/InputPanel";
 import { NodeList } from "@/components/NodeList";
 import { Toast, type ToastMessage } from "@/components/Toast";
+import { SampleButton } from "@/components/SampleButton";
 import { parseOpenAPI, getBaseUrl } from "@/lib/parser";
 import { convertToN8nNodes, createWorkflow } from "@/lib/converter/index";
 import type { N8nNode, OpenAPISpec } from "@/types";
 
 const STORAGE_KEY = "n8n-openapi-tabs";
+
+const SAMPLES = [
+  { name: "1Password", file: "1password.json" },
+  { name: "Ably", file: "ably.json" },
+  { name: "Asana", file: "asana.json" },
+  { name: "AWS S3", file: "aws-s3.yaml" },
+  { name: "Bitbucket", file: "bitbucket.json" },
+  { name: "Box", file: "box.json" },
+  { name: "CircleCI", file: "circleci.json" },
+  { name: "DigitalOcean", file: "digitalocean.json" },
+  { name: "Discord", file: "discord.json" },
+  { name: "Giphy", file: "giphy.json" },
+  { name: "GitHub", file: "github.json" },
+  { name: "Kubernetes", file: "kubernetes.json" },
+  { name: "OpenAI", file: "openai.yaml" },
+  { name: "Petstore v2", file: "petstore-v2.json" },
+  { name: "Petstore v3", file: "petstore-v3.json" },
+  { name: "Rebilly", file: "rebilly.json" },
+  { name: "SendGrid", file: "sendgrid.json" },
+  { name: "Slack", file: "slack.json" },
+  { name: "Spotify", file: "spotify.json" },
+  { name: "Stripe", file: "stripe.json" },
+  { name: "Swagger Generator", file: "swagger-generator.json" },
+  { name: "Trello", file: "trello.json" },
+  { name: "Twilio", file: "twilio.json" },
+  { name: "Weather.gov", file: "weather-gov.json" },
+  { name: "Zoom", file: "zoom.json" },
+];
 
 interface ConversionTab {
   id: string;
@@ -147,11 +176,6 @@ export default function Home() {
   };
 
   const handleCloseTab = (id: string) => {
-    const tab = tabs.find((t) => t.id === id);
-    if (!tab) return;
-
-    if (!confirm(`Remove "${tab.title}" tab?`)) return;
-
     const newTabs = tabs.filter((t) => t.id !== id);
     let newActiveId = activeTabId;
 
@@ -254,6 +278,23 @@ export default function Home() {
     saveToStorage(newTabs, activeTabId);
   };
 
+  const handleSampleClick = async (file: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`/samples/${file}`);
+      if (!response.ok) throw new Error("Failed to fetch sample");
+      const content = await response.text();
+      await handleConvert(content);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to load sample";
+      setError(message);
+      addToast("error", message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-base-100 flex flex-col">
       <header className="navbar bg-base-200 px-6">
@@ -314,6 +355,20 @@ export default function Home() {
               </div>
             </button>
           </div>
+
+          {/* Popular APIs */}
+          <div className="card bg-base-200 p-3">
+            <h3 className="text-sm font-semibold mb-2">Popular APIs</h3>
+            <div className="flex flex-wrap gap-2">
+              {SAMPLES.map((sample) => (
+                <SampleButton
+                  key={sample.file}
+                  name={sample.name}
+                  onClick={() => handleSampleClick(sample.file)}
+                />
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Column 2 - Browser Tabs (7/10) */}
@@ -323,14 +378,15 @@ export default function Home() {
             {tabs.map((tab) => (
               <div
                 key={tab.id}
-                className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-t-lg cursor-pointer transition-colors min-w-0 ${
+                data-testid="tab-item"
+                className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-t-lg cursor-pointer transition-colors w-48 ${
                   activeTabId === tab.id
                     ? "bg-base-200 text-base-content"
                     : "bg-base-300 text-base-content/60 hover:text-base-content hover:bg-base-200/50"
                 }`}
                 onClick={() => setActiveTabId(tab.id)}
               >
-                <span className="truncate max-w-32">{tab.title}</span>
+                <span className="truncate flex-1">{tab.title}</span>
                 <button
                   className="btn btn-ghost btn-xs p-0 h-4 min-h-0 w-4"
                   onClick={(e) => {
