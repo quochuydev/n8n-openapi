@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import type { N8nNode } from '../types';
 
 interface NodeListProps {
@@ -20,6 +21,8 @@ const methodColors: Record<string, string> = {
 };
 
 export function NodeList({ nodes, selectedIds, onToggle, onCopy }: NodeListProps) {
+  const [search, setSearch] = useState('');
+
   if (nodes.length === 0) {
     return (
       <div className="text-center text-base-content/50 py-8">
@@ -28,9 +31,24 @@ export function NodeList({ nodes, selectedIds, onToggle, onCopy }: NodeListProps
     );
   }
 
+  const filteredNodes = search
+    ? nodes.filter((node) => {
+        const path = node.parameters.url.replace(/^https?:\/\/[^/]+/, '') || node.parameters.url;
+        return path.toLowerCase().includes(search.toLowerCase());
+      })
+    : nodes;
+
   return (
-    <ul className="space-y-1">
-      {nodes.map((node) => {
+    <div className="flex flex-col gap-2">
+      <input
+        type="text"
+        className="input input-bordered input-sm w-full"
+        placeholder="Search paths..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
+      <ul className="space-y-1">
+      {filteredNodes.map((node) => {
         const method = node.parameters.method;
         const url = node.parameters.url;
         const path = url.replace(/^https?:\/\/[^/]+/, '') || url;
@@ -62,6 +80,7 @@ export function NodeList({ nodes, selectedIds, onToggle, onCopy }: NodeListProps
           </li>
         );
       })}
-    </ul>
+      </ul>
+    </div>
   );
 }
